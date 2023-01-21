@@ -8,22 +8,14 @@ The approach used in this project is to generate local word embeddings for each 
 The main file of the project is approach.ipynb where the complete pipeline is described and implemented, it includes the following steps:
 
 1. Preprocessing of the TREC-Covid dataset, including cleaning and normalizing the text data and extracting the co-authorship and citation information.
-
 2. Training the local and global word2vec model
-
 3. Standard query to the index for first ranking
    1. Retrieval of Top-k documents
-
 4. Getting terms from references
-
 5. Getting terms from co-authors
-
 6. Ranking all terms
-
 7. Retrain the model
-
 8. Select new terms and merge
-
 9. Evaluate
 
 Implementation of the query expansion technique using the generated local word embeddings and the PyTorch implementation of the BM25 retrieval model.
@@ -32,11 +24,8 @@ Evaluation of the query expansion technique using standard information retrieval
 
 # Usage
 1. Clone this repository to your local machine.
-
 2. Run the 'Setup Code'-Part
-
 3. Run the approach.ipynb file using Jupyter Notebook.
-
 4. Follow the instructions in the notebook to reproduce the results.
 
 # Results
