@@ -118,23 +118,55 @@ def remove_special_chars(text):
 # stem words with krovetz stemmer
 # return the preprocessed text as a list of tokens
 # if the token cannot be stemmed, use unidecode to convert it to ascii
-def preprocess(text):
+def preprocess(text,useLowercase=True,useStopwords=True,useSpecialChars=True,userRegexTokenizer=True,useStemmer=True):
     tokens = []
     try:
         sentences = nltk.sent_tokenize(text)
     except Exception as e:
         return []
     for sentence in sentences:
-        sentence = sentence.lower()
-        sentence = remove_stopwords(sentence)
-        sentence = remove_special_chars(sentence)
-        tokens = tokens + regex_tokenizer.tokenize(sentence)
+        if useLowercase:
+            sentence = sentence.lower()
+        if useStopwords:
+            sentence = remove_stopwords(sentence)
+        if useSpecialChars:
+            sentence = remove_special_chars(sentence)
+        if userRegexTokenizer:
+            tokens = tokens + regex_tokenizer.tokenize(sentence)
+        else:
+            tokens = tokens + nltk.word_tokenize(sentence)
     result = []
     for token in tokens:
         try:
-            result.append(krovetz_stemmer.stem(token))
+            if useStemmer:
+                result.append(krovetz_stemmer.stem(token))
+            else:
+                result.append(token)
         except Exception as e:
             result.append(krovetz_stemmer.stem(unidecode(token)))
+    return result
+
+# Also return the original tokens
+def preprocess_sentence(sentence,useLowercase=True,useStopwords=True,useSpecialChars=True,userRegexTokenizer=True,useStemmer=True):
+    if useLowercase:
+        sentence = sentence.lower()
+    if useStopwords:
+        sentence = remove_stopwords(sentence)
+    if useSpecialChars:
+        sentence = remove_special_chars(sentence)
+    if userRegexTokenizer:
+        tokens = regex_tokenizer.tokenize(sentence)
+    else:
+       tokens = nltk.word_tokenize(sentence)
+    result = []
+    for token in tokens:
+        try:
+            if useStemmer:
+                result.append([krovetz_stemmer.stem(token),tokens])
+            else:
+                result.append([token,token])
+        except Exception as e:
+            result.append([unidecode(token),token])
     return result
 
 
@@ -234,16 +266,8 @@ def get_initial_word2vec_model(preprocessed_data):
 # Helper function to get the global word2vec model
 # Returns the global word2vec model
 def get_global_word2vec_model():
-    # Check if  data/word2vec_global.model exists
-    # If it does not exist, api.load the model and save it to the file
-    # If it exists, load the model from the file
-    if not os.path.exists(os.path.join(DATA_PATH, "word2vec_global.model")):
-        print("Downloading word2vec model...")
-        word2vec_model = api.load("glove-wiki-gigaword-300")
-        word2vec_model.save(os.path.join(DATA_PATH, "word2vec_global.model"))
-    else:
-        print("Loading word2vec model...")
-        word2vec_model = Word2Vec.load(os.path.join(DATA_PATH, "word2vec_global.model"))
+    print("Downloading word2vec model...")
+    word2vec_model = api.load("glove-wiki-gigaword-300")
     return word2vec_model
 
 
@@ -280,12 +304,15 @@ def get_top_k_ranked_tokens_from_dataframe_with_bm25_and_bo1(index, tokens_df,k,
     bm25 = pt.BatchRetrieve(index, wmodel='BM25')
     bo1 = pt.rewrite.Bo1QueryExpansion(index)
     pipelineQE = bm25 >> bo1 >> bm25
+    if not isSorted:
+        return res[:k]["query_0"].values
     res = pipelineQE.transform(tokens_df)
-    # MISSING TAKING THE TOP K
+    res = res.sort_values(by="score", ascending=False)
+    res = res.drop_duplicates(subset=['qid'], keep='first')
+    res = res.drop_duplicates(subset=['query_0'], keep='first')
+    # ATTENTION MIGHT BE HORRIBLY WRONG. IF YOU READ THIS AND KNOW A BETTER WAY TO DO IT PLEASE TELL ME
     if isSorted:
-        return res.sort_values(by="score", ascending=False)[:k]
-    else:
-        return res[:k]
+        return res[:k]["query_0"].values
 
 
 # takes docno and returns list of titles
@@ -368,10 +395,10 @@ def get_field_for_all_relevant_authors(metadata,docs_to_get_field_for,k,field="p
         for author in current_doc_authors:
             tmp_author_name_array = author.split(", ")
             semantic_scholar_author_search_string = tmp_author_name_array[1] + " " + tmp_author_name_array[0]
-            print("Searching current author: "+author + "\nQuery: "+current_doc.query)
+            print("Searching current author: "+ author + "\nQuery: "+current_doc.query)
             current_author_relevant_papers = semantic_scholar_search_author_and_query_string([semantic_scholar_author_search_string],current_doc.query,author_relevant_paper_count)
             all_authors_relevant_papers = all_authors_relevant_papers + current_author_relevant_papers
-            time.sleep(10) # Sleep to not hit API-Limit
+            time.sleep(5) # Sleep to not hit API-Limit
     return list(map(lambda x:x[field]['text'], all_authors_relevant_papers))
 
 # get query qid df from all preprocessed tokens of docs
@@ -438,12 +465,15 @@ def get_tokenized_sentences_for_word2vec(metadata,top_k_docs,top_k_docs_referenc
 
     return all_terms_per_sentences
 
+
+# retrain word2vec model
+# takes model, tokenized_sentences, epochs=10
 def retrain_word2vec_model(model,tokenized_sentences,epochs=10):
     # Die tokens aus 2.4 verwenden, um word2vec nach zu trainieren und zusätzliche termkanidaten erstellen
     model.build_vocab(tokenized_sentences, update=True)  # prepare the model vocabulary
     model.min_count = 1
     model.train(tokenized_sentences, total_examples=len(tokenized_sentences), epochs=epochs)  # train word vectors
-    model.save("data/word2vec_retrained.model")
+    model.save(os.path.abspath(os.path.join(DATA_PATH, "word2vec_retrained.model")))
     return model
 
 
@@ -467,4 +497,48 @@ def expand_search_terms(all_terms,abstracts_model,threshold=0.8,max_expansion_wo
 
 # return the query column of a dataframe as an array
 def query_qid_df_to_array(query_qid_df):
-    return query_qid_df["query"].values 
+    return query_qid_df["query"].values
+
+# takes the original queries and expands them using the model_similiar_function
+# returns a dataframe with the expanded queries
+def expand_queries_with_model(queries_to_expand,model_similiar_function,threshold=0.8,max_expansion_word_count=5):
+    expanded_title_queries = []
+    i = 1
+    for index,row in queries_to_expand.iterrows():
+        row_query = row["query"]
+        row_query_expanded = []
+        preprocessed_token_array = preprocess_sentence(row_query,useStemmer=False)
+        for token,original_token in preprocessed_token_array:
+            try:
+                similar_words = model_similiar_function(token)
+            except Exception as e:
+                print(e)
+                similar_words = []
+            filtered_similar_words = [word for word, score in similar_words if score > threshold]
+            row_query_expanded.append(original_token)
+            row_query_expanded = row_query_expanded + filtered_similar_words[:max_expansion_word_count]
+        row_query_expanded = " ".join(row_query_expanded)
+        expanded_title_queries.append([str(i),row_query_expanded,row_query])
+        i = i + 1
+    return pd.DataFrame(expanded_title_queries, columns=["qid", "query","query_1"])
+
+# expands the original queries with a given array of tokens
+# returns a dataframe with the expanded queries
+def expand_queries_with_array_of_tokens(queries_to_expand,token_array):
+    expanded_title_queries = []
+    i = 1
+    for index,row in queries_to_expand.iterrows():
+        row_query = row["query"]
+        row_query_expanded = row_query + " " + " ".join(token_array)
+        expanded_title_queries.append([str(i),row_query_expanded,row_query])
+        i = i + 1
+    return pd.DataFrame(expanded_title_queries, columns=["qid", "query","query_1"])
+
+# takes a list of tokens
+# returns a dataframe with qid and query
+def get_qid_query_df_from_list(list):
+    return pd.DataFrame([[i+1,str(x)] for i,x in enumerate(list)], columns=["qid", "query"])
+
+# Create new dataframe with qid as int64 column and query as string column
+def get_qid_query_df_from_df(df):
+    return pd.DataFrame([[int(i),str(x)] for i,x in df.values], columns=["qid", "query"])
