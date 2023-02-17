@@ -31,8 +31,8 @@ regex_tokenizer = RegexpTokenizer(r'\w+|\$[\d\.]+|\S+')
 semantic_scholar = SemanticScholar()
 
 # Path to the data folder
-DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../data"))
-INDICES_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../indices"))
+DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "./data"))
+INDICES_PATH = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "./indices"))
 
 # Helper function to get the pyterrier instance
 def get_pyterrier_instance():
@@ -278,9 +278,9 @@ def get_top_k_docs_bm25(index,queries,k,isSorted=True):
     bm25 = pt.BatchRetrieve(index, wmodel='BM25', num_results=k)
     res = bm25.transform(queries)
     if isSorted:
-        return res.sort_values(by="score", ascending=False)[:3]
+        return res.sort_values(by="score", ascending=False)[:k]
     else:
-        return res[:3]
+        return res[:k]
 
 
 # Helper function to get the a dataframe of the docs for a field
@@ -482,7 +482,7 @@ def retrain_word2vec_model(model,tokenized_sentences,epochs=10):
 # and adding them to the list of search terms. The most similar words are found using the Word2Vec model
 # and the word embedding vectors are used to find the similar words. The similar words are filtered based on
 # a threshold value and the top MAX_EXPANSION_WORD_COUNT words are added to the search terms list.
-def expand_search_terms(all_terms,abstracts_model,threshold=0.8,max_expansion_word_count=5):
+def expand_search_terms(all_terms,abstracts_model,threshold=0.5,max_expansion_word_count=5):
     all_terms_expanded = []
     for term in all_terms:
         try:
@@ -501,7 +501,7 @@ def query_qid_df_to_array(query_qid_df):
 
 # takes the original queries and expands them using the model_similiar_function
 # returns a dataframe with the expanded queries
-def expand_queries_with_model(queries_to_expand,model_similiar_function,threshold=0.8,max_expansion_word_count=5):
+def expand_queries_with_model(queries_to_expand,model_similiar_function,threshold=0.5,max_expansion_word_count=5):
     expanded_title_queries = []
     i = 1
     for index,row in queries_to_expand.iterrows():

@@ -1,4 +1,7 @@
 indices/
+external_models/
+models/
+data/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
