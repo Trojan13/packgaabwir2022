@@ -27,7 +27,20 @@ The main file of the project is main.ipynb where the complete pipeline is descri
 
 
 # Files
-
+.
+└── Filestructure/
+    ├── main.ipynb - Main file
+    ├── main.py - main file, but as a single, executable python file
+    ├── ir_utils.py - Contains all the necessary functions for `main.ipynb` and `main.py`
+    ├── images/
+    │   ├── dates.png - Analysis of the cord/covid-19 publish dates
+    │   ├── most_common.png - Analysis of the cord/covid-19 most common tokens
+    │   └── tokensimilarity.png - Visualization of the trained word2vec model token similarities
+    ├── old_files/
+    │   ├── analysis.ipynb - Initial analysis of the cord/covid-19 dataset
+    │   ├── approach.ipynb - Testing notebook, creating all functions from `ir_utils.py`
+    │   └── questions.ipynb - Snippets we had questions about to send to our tutor
+    └── models - Contains the trained word2vec models
 
 
 
