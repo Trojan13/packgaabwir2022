@@ -27,6 +27,7 @@ The main file of the project is main.ipynb where the complete pipeline is descri
 
 
 # Files
+`
 .
 └── Filestructure/
     ├── main.ipynb - Main file
@@ -41,6 +42,7 @@ The main file of the project is main.ipynb where the complete pipeline is descri
     │   ├── approach.ipynb - Testing notebook, creating all functions from `ir_utils.py`
     │   └── questions.ipynb - Snippets we had questions about to send to our tutor
     └── models - Contains the trained word2vec models
+    `
 
 
 
