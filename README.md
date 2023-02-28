@@ -47,4 +47,4 @@ The main file of the project is main.ipynb where the complete pipeline is descri
 
 
 # Results
-?????????????
+See our paper. [LINK WILL FOLLOW]
